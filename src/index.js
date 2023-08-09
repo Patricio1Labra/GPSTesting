@@ -12,7 +12,7 @@ app.use(morgan('dev'));
 app.use(express.json());
 //routes
 app.use('/api',require('./routes/routes'));
-app.use('/api1',require('./routes/algo'));
+app.use('/api1',require('./routes/patricio'));
 //static
 app.use(express.static(path.join(__dirname, 'public')));
 //start server

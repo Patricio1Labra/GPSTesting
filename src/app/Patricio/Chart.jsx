@@ -1,21 +1,15 @@
 import * as React from 'react';
+import { useEffect, useState } from "react";
 import { styled } from '@mui/material/styles';
-import Card from '@mui/material/Card';
-import CardHeader from '@mui/material/CardHeader';
-import CardMedia from '@mui/material/CardMedia';
-import CardContent from '@mui/material/CardContent';
-import CardActions from '@mui/material/CardActions';
+import {Box,Card,CardContent,List,ListItem,IconButton} from "@mui/material";
 import Collapse from '@mui/material/Collapse';
-import Avatar from '@mui/material/Avatar';
-import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import { red } from '@mui/material/colors';
-import FavoriteIcon from '@mui/icons-material/Favorite';
-import ShareIcon from '@mui/icons-material/Share';
+import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
+import Tooltip from '@mui/material/Tooltip';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
 
-const ExpandMore = styled((props) => {
+const ExpandMore  = styled((props) => {
   const { expand, ...other } = props;
   return <IconButton {...other} />;
 })(({ theme, expand }) => ({
@@ -26,88 +20,155 @@ const ExpandMore = styled((props) => {
   }),
 }));
 
-export default function RecipeReviewCard() {
-  const [expanded, setExpanded] = React.useState(false);
+export default function Pagina() {
+  const [ramas, setRamas] = useState([]);
+  const [estudianteId, setEstudianteId] = useState("64d320a00f480f1c4de9c6ec"); // ID del estudiante (cámbialo según tu lógica)
+  const [ramasEstudiante, setRamasEstudiante] = useState([]); // IDs de las ramas registradas por el estudiante
+  const [ramasRegistradas, setRamasRegistradas] = useState([]);
+  const [ramasNoRegistradas, setRamasNoRegistradas] = useState([]);
 
-  const handleExpandClick = () => {
-    setExpanded(!expanded);
+  const handleExpandClick = (rama) => {
+    let update = ramasRegistradas.map(item => {
+      if(item == rama){
+        return {...item, expandir: !item.expandir}
+      }else{
+        return item
+      }
+    })
+    setRamasRegistradas(update);
+  }
+  const handleExpandClick1 = (rama) => {
+    let update = ramasNoRegistradas.map(item => {
+      if(item == rama){
+        return {...item, expandir: !item.expandir}
+      }else{
+        return item
+      }
+    })
+    setRamasNoRegistradas(update);
+  }
+  useEffect(() => {
+    // Obtener información del estudiante y sus ramas registradas
+    fetch(`http://localhost:3000/api1/estudiantes/${estudianteId}`)
+      .then(response => response.json())
+      .then(data => {
+        setRamasEstudiante(data.ramaDeportiva); // Asignar las IDs de las ramas registradas por el estudiante
+      })
+      .catch(error => {
+        console.error('Error al cargar las ramas del estudiante:', error);
+      });
+
+    // Obtener todas las ramas
+    fetch('http://localhost:3000/api1/ramas')
+      .then(response => response.json())
+      .then(data => {
+        setRamas(data);
+      })
+      .catch(error => {
+        console.error('Error al cargar todas las ramas:', error);
+      });
+      //setRamasRegistradas(ramas.filter(rama => ramasEstudiante.includes(rama._id)));
+      //setRamasNoRegistradas(ramas.filter(rama => !ramasEstudiante.includes(rama._id)));
+  }, [estudianteId]);
+  
+  useEffect(() => {
+    setRamasRegistradas(ramas.filter(rama => ramasEstudiante.includes(rama._id)));
+    setRamasNoRegistradas(ramas.filter(rama => !ramasEstudiante.includes(rama._id)));
+  }, [ramas, ramasEstudiante]);
+
+  const editarEstudiante = async (accion, ramaId) => {
+    try {
+      const response = await fetch(`http://localhost:3000/api1/estudiantes/${estudianteId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ accion, ramaId })
+      });
+
+      if (response.ok) {
+        // Actualizar la lista de ramas del estudiante en el cliente
+        if (accion === 'agregar') {
+          setRamasEstudiante([...ramasEstudiante, ramaId]);
+        } else if (accion === 'eliminar') {
+          setRamasEstudiante(ramasEstudiante.filter(id => id !== ramaId));
+        }
+      } else {
+        console.error('Error al editar el estudiante');
+      }
+    } catch (error) {
+      console.error('Error al editar el estudiante:', error);
+    }
+  };
+
+  const generateCardContent = (item, isRegistered) => {
+    return (
+      <>
+        <CardContent sx={{ display: 'flex', justifyContent: 'center' }}>
+          {item.nombre}
+        </CardContent>
+        <CardContent>
+          <Typography variant="body2">
+            {item.descripcion}
+          </Typography>
+        </CardContent>
+        <Collapse in={item.expandir} timeout="auto" unmountOnExit>
+          <CardContent>
+            <Typography variant="body2">
+              Ubicacion: {item.recinto}
+            </Typography>
+            <Typography variant="body2">
+              Dia: {item.horario.dia}
+            </Typography>
+            <Typography variant="body2">
+              Inicio: {item.horario.horaInicio}
+            </Typography>
+            <Typography variant="body2">
+              Termina: {item.horario.horaSalida}
+            </Typography>
+          </CardContent>
+        </Collapse>
+        <Box sx={{ display: 'flex', justifyContent: 'space-evenly' }}>
+          <Tooltip title={isRegistered ? 'Eliminar Solicitud' : 'Solicitar'} followCursor>
+            <IconButton aria-label="" onClick={() => editarEstudiante(isRegistered ? 'eliminar' : 'agregar', item._id)}>
+              {isRegistered ? (
+                <RemoveCircleOutlineIcon sx={{ height: 38, width: 38 }} />
+              ) : (
+                <AddCircleOutlineIcon sx={{ height: 38, width: 38 }} />
+              )}
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Ver más" followCursor>
+            <ExpandMore
+              expand={item.expandir}
+              onClick={() => (isRegistered ? handleExpandClick(item) : handleExpandClick1(item))}
+              aria-expanded={item.expandir}
+              aria-label="mostrar descripcion"
+            >
+              <ExpandMoreIcon />
+            </ExpandMore>
+          </Tooltip>
+        </Box>
+      </>
+    );
   };
 
   return (
-    <Card sx={{ maxWidth: 345 }}>
-      <CardHeader
-        avatar={
-          <Avatar sx={{ bgcolor: red[500] }} aria-label="recipe">
-            R
-          </Avatar>
-        }
-        action={
-          <IconButton aria-label="settings">
-            <MoreVertIcon />
-          </IconButton>
-        }
-        title="Shrimp and Chorizo Paella"
-        subheader="September 14, 2016"
-      />
-      <CardMedia
-        component="img"
-        height="194"
-        image="https://mui.com/static/images/cards/paella.jpg"
-        alt="Paella dish"
-      />
-      <CardContent>
-        <Typography variant="body2" color="text.secondary">
-          This impressive paella is a perfect party dish and a fun meal to cook
-          together with your guests. Add 1 cup of frozen peas along with the mussels,
-          if you like.
-        </Typography>
-      </CardContent>
-      <CardActions disableSpacing>
-        <IconButton aria-label="add to favorites">
-          <FavoriteIcon />
-        </IconButton>
-        <IconButton aria-label="share">
-          <ShareIcon />
-        </IconButton>
-        <ExpandMore
-          expand={expanded}
-          onClick={handleExpandClick}
-          aria-expanded={expanded}
-          aria-label="show more"
-        >
-          <ExpandMoreIcon />
-        </ExpandMore>
-      </CardActions>
-      <Collapse in={expanded} timeout="auto" unmountOnExit>
-        <CardContent>
-          <Typography paragraph>Method:</Typography>
-          <Typography paragraph>
-            Heat 1/2 cup of the broth in a pot until simmering, add saffron and set
-            aside for 10 minutes.
-          </Typography>
-          <Typography paragraph>
-            Heat oil in a (14- to 16-inch) paella pan or a large, deep skillet over
-            medium-high heat. Add chicken, shrimp and chorizo, and cook, stirring
-            occasionally until lightly browned, 6 to 8 minutes. Transfer shrimp to a
-            large plate and set aside, leaving chicken and chorizo in the pan. Add
-            pimentón, bay leaves, garlic, tomatoes, onion, salt and pepper, and cook,
-            stirring often until thickened and fragrant, about 10 minutes. Add
-            saffron broth and remaining 4 1/2 cups chicken broth; bring to a boil.
-          </Typography>
-          <Typography paragraph>
-            Add rice and stir very gently to distribute. Top with artichokes and
-            peppers, and cook without stirring, until most of the liquid is absorbed,
-            15 to 18 minutes. Reduce heat to medium-low, add reserved shrimp and
-            mussels, tucking them down into the rice, and cook again without
-            stirring, until mussels have opened and rice is just tender, 5 to 7
-            minutes more. (Discard any mussels that don&apos;t open.)
-          </Typography>
-          <Typography>
-            Set aside off of the heat to let rest for 10 minutes, and then serve.
-          </Typography>
-        </CardContent>
-      </Collapse>
-    </Card>
-    
+    <List sx={{ overflow: 'auto', paddingTop: '0' }}>
+      {ramasRegistradas.slice(0).reverse().map((item, index) => (
+        <ListItem sx={{ display: "block", paddingLeft: "0", paddingRight: "0", paddingTop: "0" }} key={index}>
+          <Card>
+            {generateCardContent(item, true)}
+          </Card>
+        </ListItem>
+      ))}
+      {ramasNoRegistradas.slice(0).reverse().map((item, index) => (
+        <ListItem sx={{ display: "block", paddingLeft: "0", paddingRight: "0", paddingTop: "0" }} key={index}>
+          <Card>
+            {generateCardContent(item, false)}
+          </Card>
+        </ListItem>
+      ))}
+    </List>
   );
 }
